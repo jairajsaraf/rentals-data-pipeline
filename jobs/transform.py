@@ -11,7 +11,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import DoubleType, IntegerType, StringType
 from pyspark.sql.window import Window
 
-_DATE_COL_PATTERN = re.compile(r"^\d{4}-\d{2}$")
+_DATE_COL_PATTERN = re.compile(r"^\d{4}-\d{2}(-\d{2})?$")
 
 
 def create_spark_session(
@@ -77,7 +77,13 @@ def unpivot_monthly(df: DataFrame) -> DataFrame:
     stack_expr = f"stack({len(date_cols)}, {stack_entries}) as (month_str, median_rent)"
     return (
         df.selectExpr("RegionID", "RegionName", "StateName", stack_expr)
-        .withColumn("month", F.to_date(F.col("month_str"), "yyyy-MM"))
+        .withColumn(
+            "month",
+            F.coalesce(
+                F.to_date(F.col("month_str"), "yyyy-MM-dd"),
+                F.to_date(F.col("month_str"), "yyyy-MM"),
+            ),
+        )
         .drop("month_str")
     )
 
@@ -176,7 +182,20 @@ def run_pipeline(df: DataFrame) -> DataFrame:
 
 
 if __name__ == "__main__":
+    import argparse
+    import os
+
     from jobs.io_utils import load_config, read_raw_csv, write_processed
+
+    parser = argparse.ArgumentParser(description="ZORI transform pipeline")
+    parser.add_argument(
+        "--local",
+        action="store_true",
+        help="Use local file paths instead of S3 (also set ENV=local).",
+    )
+    args = parser.parse_args()
+
+    is_local = args.local or os.environ.get("ENV", "").lower() == "local"
 
     config = load_config("config/pipeline.yaml")
     spark_cfg = config.get("spark", {})
@@ -184,6 +203,9 @@ if __name__ == "__main__":
         app_name=spark_cfg.get("app_name", "zori-transform"),
         master=spark_cfg.get("master", "local[*]"),
     )
-    raw_df = read_raw_csv(spark, config["s3"]["raw_path"])
+
+    path_key = "local" if is_local else "s3"
+    raw_df = read_raw_csv(spark, config[path_key]["raw_path"])
     result_df = run_pipeline(raw_df)
-    write_processed(result_df, config["s3"]["processed_path"])
+    write_processed(result_df, config[path_key]["processed_path"])
+    spark.stop()
