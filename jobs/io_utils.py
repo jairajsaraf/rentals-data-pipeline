@@ -99,6 +99,7 @@ def write_processed(df: DataFrame, path: str) -> None:
     """
     (
         df.withColumn("year", F.year("month"))
+        .coalesce(1)
         .write.mode("overwrite")
         .option("compression", "snappy")
         .partitionBy("StateName", "year")
