@@ -1,7 +1,7 @@
 .PHONY: test lint run-local clean
 
 test:
-	python -m pytest tests/ -v
+	python -m pytest tests/ -v --tb=short
 
 lint:
 	ruff check jobs/ dags/ tests/

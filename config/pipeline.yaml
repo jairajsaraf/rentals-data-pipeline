@@ -1,3 +1,7 @@
+spark:
+  app_name: "zori-transform"
+  master: "local[*]"
+
 s3:
   raw_path: "s3a://rentals-data-pipeline/raw/zori/"
   processed_path: "s3a://rentals-data-pipeline/processed/zori/"
@@ -11,3 +15,4 @@ dq_thresholds:
   null_pct: 0.1
   min_rows: 100
   rent_range: [0, 50000]
+  uniqueness_keys: [RegionID, month]

@@ -14,16 +14,24 @@ from pyspark.sql.window import Window
 _DATE_COL_PATTERN = re.compile(r"^\d{4}-\d{2}$")
 
 
-def create_spark_session(app_name: str = "zori-transform") -> SparkSession:
+def create_spark_session(
+    app_name: str = "zori-transform",
+    master: str = "local[*]",
+) -> SparkSession:
     """Create and return a configured SparkSession.
 
     Args:
         app_name: Name for the Spark application.
+        master: Spark master URL. Defaults to ``local[*]``.
 
     Returns:
         A configured SparkSession instance.
     """
-    raise NotImplementedError
+    return (
+        SparkSession.builder.appName(app_name)
+        .master(master)
+        .getOrCreate()
+    )
 
 
 def enforce_schema(df: DataFrame) -> DataFrame:
@@ -171,7 +179,11 @@ if __name__ == "__main__":
     from jobs.io_utils import load_config, read_raw_csv, write_processed
 
     config = load_config("config/pipeline.yaml")
-    spark = create_spark_session()
+    spark_cfg = config.get("spark", {})
+    spark = create_spark_session(
+        app_name=spark_cfg.get("app_name", "zori-transform"),
+        master=spark_cfg.get("master", "local[*]"),
+    )
     raw_df = read_raw_csv(spark, config["s3"]["raw_path"])
     result_df = run_pipeline(raw_df)
     write_processed(result_df, config["s3"]["processed_path"])
