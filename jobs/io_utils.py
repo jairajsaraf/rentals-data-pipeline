@@ -18,7 +18,7 @@ from pyspark.sql.types import (
     StructType,
 )
 
-_DATE_COL_PATTERN = re.compile(r"^\d{4}-\d{2}$")
+_DATE_COL_PATTERN = re.compile(r"^\d{4}-\d{2}(-\d{2})?$")
 
 _FIXED_FIELDS: dict[str, Any] = {
     "RegionID": IntegerType(),
