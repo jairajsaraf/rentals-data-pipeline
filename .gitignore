@@ -225,3 +225,4 @@ spark-warehouse/
 *.swp
 *.swo
 *~
+.claude/
