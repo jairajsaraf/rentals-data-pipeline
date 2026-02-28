@@ -1,0 +1,7 @@
+pyspark==3.5.4
+boto3==1.36.24
+duckdb==1.2.1
+apache-airflow==2.10.5
+pyyaml==6.0.2
+pytest==8.3.4
+ruff==0.9.7
