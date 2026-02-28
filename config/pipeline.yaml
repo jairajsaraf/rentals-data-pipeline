@@ -6,6 +6,10 @@ s3:
   raw_path: "s3a://rentals-data-pipeline/raw/zori/"
   processed_path: "s3a://rentals-data-pipeline/processed/zori/"
 
+local:
+  raw_path: "data/raw/Zip_zori_uc_sfrcondomfr_sm_month.csv"
+  processed_path: "data/processed/zori/"
+
 partitioning:
   partition_keys:
     - state
