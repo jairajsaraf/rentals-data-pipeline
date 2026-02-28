@@ -1,0 +1,13 @@
+s3:
+  raw_path: "s3a://rentals-data-pipeline/raw/zori/"
+  processed_path: "s3a://rentals-data-pipeline/processed/zori/"
+
+partitioning:
+  partition_keys:
+    - state
+    - year
+
+dq_thresholds:
+  null_pct: 0.1
+  min_rows: 100
+  rent_range: [0, 50000]
