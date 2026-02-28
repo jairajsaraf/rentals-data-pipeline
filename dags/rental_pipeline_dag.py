@@ -87,7 +87,11 @@ def rental_pipeline_dag() -> None:
         from jobs.transform import create_spark_session, run_pipeline
 
         config = load_config(_CONFIG_PATH)
-        spark = create_spark_session()
+        spark_cfg = config.get("spark", {})
+        spark = create_spark_session(
+            app_name=spark_cfg.get("app_name", "zori-transform"),
+            master=spark_cfg.get("master", "local[*]"),
+        )
         try:
             raw_df = read_raw_csv(spark, raw_path)
             result_df = run_pipeline(raw_df)
@@ -123,7 +127,11 @@ def rental_pipeline_dag() -> None:
 
         config = load_config(_CONFIG_PATH)
         dq = config["dq_thresholds"]
-        spark = create_spark_session()
+        spark_cfg = config.get("spark", {})
+        spark = create_spark_session(
+            app_name=spark_cfg.get("app_name", "zori-transform"),
+            master=spark_cfg.get("master", "local[*]"),
+        )
         try:
             df = spark.read.parquet(processed_path)
             checks = [

@@ -1,3 +1,7 @@
+spark:
+  app_name: "zori-transform"
+  master: "local[*]"
+
 s3:
   raw_path: "s3a://rentals-data-pipeline/raw/zori/"
   processed_path: "s3a://rentals-data-pipeline/processed/zori/"
