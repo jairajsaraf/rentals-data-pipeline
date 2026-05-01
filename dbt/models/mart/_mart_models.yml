@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: mart_state_rent_summary
+    description: "Per-state, per-month summary of median rent across all regions in that state."
+    columns:
+      - name: state_name
+        description: "Two-letter US state code."
+        tests:
+          - not_null
+      - name: month
+        description: "First-of-month date."
+        tests:
+          - not_null
+      - name: regions_count
+        description: "Distinct regions reporting rent in this state-month."
+        tests:
+          - not_null
+      - name: avg_rent
+        description: "Mean of median_rent across regions in this state-month."
+      - name: min_rent
+        description: "Minimum of median_rent across regions in this state-month."
+      - name: max_rent
+        description: "Maximum of median_rent across regions in this state-month."
+      - name: median_state_rent
+        description: "Median of median_rent across regions in this state-month."
+
+  - name: mart_rent_trends
+    description: "Per-region monthly rent with a trailing 12-month rolling average for trend analysis."
+    columns:
+      - name: region_id
+        description: "Zillow region identifier."
+        tests:
+          - not_null
+      - name: region_name
+        description: "Region display name."
+      - name: state_name
+        description: "Two-letter US state code."
+      - name: month
+        description: "First-of-month date."
+        tests:
+          - not_null
+      - name: median_rent
+        description: "Median rent for the region this month."
+      - name: rolling_12m_avg_rent
+        description: "Trailing 12-month average of median_rent for this region (inclusive of current month)."
+      - name: rent_change_mom
+        description: "Month-over-month percent change in median_rent."
+      - name: state_rent_rank
+        description: "Rank within (state_name, month) by median_rent descending."

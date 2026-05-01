@@ -1,0 +1,24 @@
+version: 2
+
+sources:
+  - name: rental_pipeline
+    schema: main
+    description: "Tables loaded by the Airflow load_to_duckdb task from PySpark Parquet output."
+    tables:
+      - name: zori_rent
+        description: "Zillow Observed Rent Index in long format, one row per (region, month)."
+        columns:
+          - name: RegionID
+            description: "Zillow region identifier."
+          - name: RegionName
+            description: "Region display name (typically a ZIP code or city)."
+          - name: StateName
+            description: "Two-letter US state code."
+          - name: month
+            description: "First-of-month date for the observation."
+          - name: median_rent
+            description: "Median rent for the region in this month (USD)."
+          - name: rent_change_mom
+            description: "Month-over-month percent change in median_rent. Null for the first month per region."
+          - name: state_rent_rank
+            description: "Rank within (StateName, month) by median_rent descending; 1 = highest."
