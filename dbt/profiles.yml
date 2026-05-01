@@ -1,0 +1,7 @@
+rental_market:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "../data/rental_market.duckdb"
+      threads: 1

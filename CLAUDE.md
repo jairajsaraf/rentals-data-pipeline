@@ -53,3 +53,28 @@ pyspark-rental-pipeline/
 - Window functions: MoM rent change via lag(), rent ranking via rank()
 - Data quality: null % thresholds, row count validation, range assertions
 - DQ checks are configurable via pipeline.yaml thresholds
+
+## DBT TRANSFORMATION LAYER
+
+- Project: `dbt/`, profile name `rental_market`, target `dev`
+- Backend: dbt-duckdb against `data/rental_market.duckdb` (gitignored)
+- Source: `main.zori_rent` — loaded by the Airflow `load_to_duckdb` task from
+  partitioned Parquet
+- Models:
+  - `stg_zori_rent` (view) — typed, snake_cased clean staging
+  - `mart_state_rent_summary` (table) — state × month rent aggregates
+  - `mart_rent_trends` (table) — 12-month rolling avg per region
+- Tests: column-level `not_null` in `dbt/models/**/*.yml`, singular tests in
+  `dbt/tests/` (no future months, composite-key uniqueness)
+- Run order: download → transform → DQ checks → load_to_duckdb → dbt run →
+  dbt test
+- **Consumers**: any new analytical query (BI tool, notebook, future API)
+  should prefer `mart_*` tables over the raw `zori_rent` source.
+
+## DBT COMMANDS
+
+- `make dbt-run` — build all dbt models
+- `make dbt-test` — run all dbt tests (column-level + singular)
+- `make dbt-docs` — generate and serve dbt documentation site
+- `make pipeline-local` — full local run: PySpark transform → load DuckDB →
+  dbt run → dbt test
