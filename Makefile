@@ -7,16 +7,16 @@ lint:
 	ruff check jobs/ dags/ tests/
 
 run-local:
-	spark-submit jobs/transform.py --config config/pipeline.yaml
+	spark-submit jobs/transform.py --local
 
 dbt-run:
-	cd dbt && dbt run
+	cd dbt && dbt run --profiles-dir .
 
 dbt-test:
-	cd dbt && dbt test
+	cd dbt && dbt test --profiles-dir .
 
 dbt-docs:
-	cd dbt && dbt docs generate && dbt docs serve
+	cd dbt && dbt docs generate --profiles-dir . && dbt docs serve --profiles-dir .
 
 pipeline-local: run-local
 	python jobs/load_duckdb.py --parquet data/processed/zori/ --db data/rental_market.duckdb
