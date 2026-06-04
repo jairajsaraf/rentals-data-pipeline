@@ -2,17 +2,20 @@
 
 DAG: rental_market_etl
 Schedule: @weekly
-Pipeline: download → transform → quality checks → load to DuckDB
+Pipeline: download → transform → quality checks → load to DuckDB → dbt
 
 Orchestrates the end-to-end ETL for Zillow Observed Rent Index data.
 Raw CSVs are downloaded, transformed via PySpark (unpivot, window
-functions), validated against configurable DQ thresholds, and loaded
-into a DuckDB analytical table from partitioned Parquet output.
+functions), validated against configurable DQ thresholds, loaded into a
+DuckDB analytical table from partitioned Parquet output, and finally
+materialized into staging/mart models via dbt.
 """
 
 from __future__ import annotations
 
 import logging
+import pathlib
+import subprocess
 from datetime import timedelta
 
 from airflow.decorators import dag, task
@@ -20,6 +23,9 @@ from airflow.decorators import dag, task
 logger = logging.getLogger(__name__)
 
 _CONFIG_PATH = "config/pipeline.yaml"
+_REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+_DUCKDB_PATH = _REPO_ROOT / "data" / "rental_market.duckdb"
+_DBT_DIR = _REPO_ROOT / "dbt"
 
 default_args = {
     "owner": "jairajsaraf",
@@ -147,15 +153,30 @@ def rental_pipeline_dag() -> None:
         return processed_path
 
     @task()
-    def load_to_duckdb(processed_path: str) -> None:
-        """Load processed Parquet data into a DuckDB analytical table.
+    def load_to_duckdb_and_run_dbt(processed_path: str) -> str:
+        """Load processed Parquet into DuckDB, then run dbt in the same task.
+
+        The DuckDB load and the dbt run/test are intentionally colocated in a
+        single Airflow task. ``run_dbt`` resolves the DuckDB path statically from
+        ``dbt/profiles.yml``, so it must execute on the same worker/filesystem
+        where ``data/rental_market.duckdb`` was just written. Splitting these
+        into separate tasks would break under distributed executors
+        (Celery/Kubernetes) without a shared volume, since dbt could land on a
+        different worker and open an empty database missing ``main.zori_rent``.
 
         Args:
             processed_path: S3 path to processed Parquet.
+
+        Returns:
+            The DuckDB file path.
+
+        Raises:
+            CalledProcessError: If ``dbt run`` or ``dbt test`` exits non-zero.
         """
         import duckdb
 
-        con = duckdb.connect("rental_market.duckdb")
+        _DUCKDB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        con = duckdb.connect(str(_DUCKDB_PATH))
         try:
             con.execute(
                 """
@@ -169,10 +190,24 @@ def rental_pipeline_dag() -> None:
         finally:
             con.close()
 
+        for cmd in (("dbt", "run"), ("dbt", "test")):
+            logger.info("Running %s in %s", " ".join(cmd), _DBT_DIR)
+            result = subprocess.run(
+                [*cmd, "--project-dir", str(_DBT_DIR), "--profiles-dir", str(_DBT_DIR)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            if result.stdout:
+                logger.info(result.stdout)
+            if result.stderr:
+                logger.warning(result.stderr)
+        return str(_DUCKDB_PATH)
+
     raw = download_data()
     processed = run_transforms(raw)
     validated = run_dq_checks(processed)
-    load_to_duckdb(validated)
+    load_to_duckdb_and_run_dbt(validated)
 
 
 rental_pipeline_dag()

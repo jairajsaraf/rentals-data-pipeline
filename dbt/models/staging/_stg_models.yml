@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: stg_zori_rent
+    description: "Cleaned and renamed ZORI rent data. PascalCase columns from the source are mapped to snake_case, types are made explicit, and rows missing state_name are dropped."
+    columns:
+      - name: region_id
+        description: "Zillow region identifier."
+        tests:
+          - not_null
+      - name: region_name
+        description: "Region display name."
+      - name: state_name
+        description: "Two-letter US state code."
+        tests:
+          - not_null
+      - name: month
+        description: "First-of-month date for the observation."
+        tests:
+          - not_null
+      - name: median_rent
+        description: "Median rent for the region in this month (USD)."
+        tests:
+          - not_null
+      - name: rent_change_mom
+        description: "Month-over-month percent change in median_rent."
+      - name: state_rent_rank
+        description: "Rank within (state_name, month) by median_rent descending."
