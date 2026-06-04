@@ -1,8 +1,8 @@
 """Load partitioned Parquet output into a local DuckDB table.
 
-Local-development helper that mirrors the Airflow ``load_to_duckdb`` task,
-so ``make pipeline-local`` can produce the same DuckDB state without
-requiring an Airflow scheduler.
+Local-development helper that mirrors the DuckDB-load step of the Airflow
+``load_to_duckdb_and_run_dbt`` task, so ``make pipeline-local`` can produce
+the same DuckDB state without requiring an Airflow scheduler.
 """
 
 from __future__ import annotations
