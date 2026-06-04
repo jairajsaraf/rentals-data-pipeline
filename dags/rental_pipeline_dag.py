@@ -153,14 +153,25 @@ def rental_pipeline_dag() -> None:
         return processed_path
 
     @task()
-    def load_to_duckdb(processed_path: str) -> str:
-        """Load processed Parquet data into a DuckDB analytical table.
+    def load_to_duckdb_and_run_dbt(processed_path: str) -> str:
+        """Load processed Parquet into DuckDB, then run dbt in the same task.
+
+        The DuckDB load and the dbt run/test are intentionally colocated in a
+        single Airflow task. ``run_dbt`` resolves the DuckDB path statically from
+        ``dbt/profiles.yml``, so it must execute on the same worker/filesystem
+        where ``data/rental_market.duckdb`` was just written. Splitting these
+        into separate tasks would break under distributed executors
+        (Celery/Kubernetes) without a shared volume, since dbt could land on a
+        different worker and open an empty database missing ``main.zori_rent``.
 
         Args:
             processed_path: S3 path to processed Parquet.
 
         Returns:
-            The DuckDB file path (passed downstream to dbt).
+            The DuckDB file path.
+
+        Raises:
+            CalledProcessError: If ``dbt run`` or ``dbt test`` exits non-zero.
         """
         import duckdb
 
@@ -178,23 +189,7 @@ def rental_pipeline_dag() -> None:
             logger.info("Loaded %d rows into DuckDB zori_rent table", row_count)
         finally:
             con.close()
-        return str(_DUCKDB_PATH)
 
-    @task()
-    def run_dbt(duckdb_path: str) -> str:
-        """Run dbt models and tests against the loaded DuckDB.
-
-        Args:
-            duckdb_path: Path to the DuckDB file populated by ``load_to_duckdb``.
-                Used only to enforce task ordering; dbt resolves the path itself
-                via ``dbt/profiles.yml``.
-
-        Returns:
-            The DuckDB file path (pass-through).
-
-        Raises:
-            CalledProcessError: If ``dbt run`` or ``dbt test`` exits non-zero.
-        """
         for cmd in (("dbt", "run"), ("dbt", "test")):
             logger.info("Running %s in %s", " ".join(cmd), _DBT_DIR)
             result = subprocess.run(
@@ -207,13 +202,12 @@ def rental_pipeline_dag() -> None:
                 logger.info(result.stdout)
             if result.stderr:
                 logger.warning(result.stderr)
-        return duckdb_path
+        return str(_DUCKDB_PATH)
 
     raw = download_data()
     processed = run_transforms(raw)
     validated = run_dq_checks(processed)
-    loaded = load_to_duckdb(validated)
-    run_dbt(loaded)
+    load_to_duckdb_and_run_dbt(validated)
 
 
 rental_pipeline_dag()
