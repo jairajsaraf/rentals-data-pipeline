@@ -63,7 +63,7 @@ make pipeline-local
 No sample data ships with the repo (`data/` is gitignored). The Airflow `download_data` task is a **stub**: it logs the configured S3 raw path and returns it, but does not download anything (`# TODO: implement actual download` in `dags/rental_pipeline_dag.py`). Fetch the Zillow ZORI ZIP-level CSV yourself and place it where `config/pipeline.yaml` expects it:
 
 - **Local runs** (`make run-local`, `make pipeline-local`): `data/raw/Zip_zori_uc_sfrcondomfr_sm_month.csv` (`local.raw_path`)
-- **Airflow / S3 runs**: upload the CSV to `s3.raw_path` before triggering the DAG
+- **Airflow / S3 runs**: the DAG reads from `s3.raw_path`, so the CSV would need to be uploaded there. The Airflow/S3 path is not exercised by CI or the tests.
 
 Without that file, `make run-local` fails with `PATH_NOT_FOUND` on the raw CSV path.
 
@@ -107,7 +107,7 @@ Output Parquet is partitioned by `StateName` and `year` (extracted from `month`)
 
 ### DuckDB load (`jobs/load_duckdb.py`)
 
-CLI helper that creates or replaces the `zori_rent` table in a local DuckDB file from the partitioned Parquet output. It mirrors the load step of the Airflow task so `make pipeline-local` works without a scheduler:
+CLI helper that creates or replaces the `zori_rent` table in a local DuckDB file from the partitioned Parquet output. It runs the same `CREATE OR REPLACE TABLE ... read_parquet` load as the Airflow task (a separate copy of that code), so `make pipeline-local` needs no scheduler:
 
 ```bash
 python jobs/load_duckdb.py --parquet data/processed/zori/ --db data/rental_market.duckdb
