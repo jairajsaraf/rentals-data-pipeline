@@ -7,7 +7,7 @@ lint:
 	ruff check jobs/ dags/ tests/
 
 run-local:
-	spark-submit jobs/transform.py --local
+	PYTHONPATH=. spark-submit jobs/transform.py --local
 
 dbt-run:
 	cd dbt && dbt run --profiles-dir .
