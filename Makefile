@@ -4,7 +4,7 @@ test:
 	python -m pytest tests/ -v --tb=short
 
 lint:
-	ruff check jobs/ dags/ tests/
+	ruff check jobs/ dags/ tests/ databricks/ scripts/
 
 run-local:
 	PYTHONPATH=.$${PYTHONPATH:+:$$PYTHONPATH} spark-submit jobs/transform.py --local

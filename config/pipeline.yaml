@@ -18,5 +18,12 @@ partitioning:
 dq_thresholds:
   null_pct: 0.1
   min_rows: 100
-  rent_range: [0, 50000]
+  rent_range: [0, 150000]
   uniqueness_keys: [RegionID, month]
+
+databricks:
+  source_url: "https://files.zillowstatic.com/research/public_csvs/zori/Zip_zori_uc_sfrcondomfr_sm_month.csv"
+  catalog: "workspace"  # confirmed on Free Edition via bundle summary
+  schema: "zori"
+  volume: "raw"
+  csv_name: "Zip_zori_uc_sfrcondomfr_sm_month.csv"

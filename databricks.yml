@@ -1,0 +1,73 @@
+# Optional Databricks Free Edition runtime. Keys under resources are validated by
+# `databricks bundle validate -t dev` (Task 4); host comes from the CLI profile.
+bundle:
+  name: rentals-zori
+
+variables:
+  catalog:
+    description: Unity Catalog catalog (Free Edition default is believed to be "workspace")
+    default: workspace
+
+targets:
+  dev:
+    mode: development
+    default: true
+
+resources:
+  schemas:
+    zori_schema:
+      catalog_name: ${var.catalog}
+      name: zori
+
+  volumes:
+    raw_volume:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.zori_schema.name}
+      name: raw
+
+  pipelines:
+    zori:
+      name: zori
+      serverless: true
+      root_path: .
+      catalog: ${var.catalog}
+      schema: ${resources.schemas.zori_schema.name}
+      configuration:
+        zori.csv_path: /Volumes/${var.catalog}/${resources.schemas.zori_schema.name}/raw/Zip_zori_uc_sfrcondomfr_sm_month.csv
+      libraries:
+        - glob:
+            include: databricks/pipeline.py
+
+  jobs:
+    zori_weekly:
+      name: zori-weekly
+      schedule:
+        quartz_cron_expression: "0 0 6 ? * MON"
+        timezone_id: UTC
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "3"
+      tasks:
+        - task_key: refresh
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.zori.id}
+        - task_key: fingerprint
+          depends_on:
+            - task_key: refresh
+          environment_key: default
+          spark_python_task:
+            python_file: databricks/fingerprint_task.py
+            parameters:
+              - --root
+              - ${workspace.file_path}
+              - --pipeline-id
+              - ${resources.pipelines.zori.id}
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${resources.schemas.zori_schema.name}
+              - --csv-path
+              - /Volumes/${var.catalog}/${resources.schemas.zori_schema.name}/raw/Zip_zori_uc_sfrcondomfr_sm_month.csv
+              - --out
+              - /Volumes/${var.catalog}/${resources.schemas.zori_schema.name}/raw/parity_remote.json

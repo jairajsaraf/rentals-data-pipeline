@@ -77,6 +77,38 @@ uv pip compile --universal --python-version 3.10 requirements.txt -o requirement
 
 Installing `requirements.txt` directly is not supported: `dbt-core==1.8.0` requires `protobuf<5`, while newer unpinned `dbt-adapters` releases require `protobuf>=5`, and `pip` fails with `ResolutionImpossible`. The lock resolves this (`dbt-adapters==1.9.0`, `protobuf==4.25.9`).
 
+## Run on Databricks Free Edition
+
+Optional. The primary path stays local / Airflow + DuckDB + dbt; see [ADR 0001](docs/adr/0001-databricks-optional-runtime.md) for why and [`docs/databricks-notes.md`](docs/databricks-notes.md) for limits, the DQ-to-expectation mapping, failure modes and the cold-deploy checklist.
+
+`databricks.yml` is a Declarative Automation Bundle that deploys a schema, a `raw` volume, one serverless Lakeflow pipeline (`databricks/pipeline.py`: `bronze_zori` → `silver_long` → `silver_zori` → `gold_zori`, plus a `dq_gold_metrics` validation view) and a `zori_weekly` job (pipeline refresh, then a fingerprint task). The pipeline reuses the transforms in `jobs/` and the thresholds in `config/pipeline.yaml`.
+
+```bash
+databricks bundle validate -t dev
+databricks bundle deploy -t dev
+databricks fs cp data/raw/Zip_zori_uc_sfrcondomfr_sm_month.csv dbfs:/Volumes/workspace/dev_<user>_zori/raw/
+databricks bundle run zori_weekly -t dev
+```
+
+Then copy `parity_remote.json` back from the volume and run `scripts/databricks_parity.py` (full steps in the notes' cold-deploy checklist).
+
+**Parity result** (from [`results/databricks_parity.json`](results/databricks_parity.json), local PySpark 3.5.4 in Docker vs Free Edition serverless Spark 4.2.0):
+
+| Layer | Local rows | Databricks rows |
+|-------|-----------:|----------------:|
+| `bronze_zori` | 8,340 | 8,340 |
+| `silver_long` | 469,420 | 469,420 |
+| `silver_zori` | 469,420 | 469,420 |
+| `gold_zori` | 469,420 | 469,420 |
+
+- Every column checksum and the whole-row checksum match on every layer, including `rent_change_mom` and `state_rent_rank`; `diffs` is `[]`.
+- Null rents dropped: 706,520 of 1,175,940 unpivoted rows on both sides. Duplicates removed: 0 on both sides.
+- Local DQ: 4 of 4 checks passed. Databricks expectations: `rent_in_range` 0 failed; `min_row_count`, `null_pct_within_threshold` and `no_duplicate_keys` passed.
+
+**Free Edition limits:** non-commercial use only, no SLA, serverless compute only, restricted outbound internet (the CSV is uploaded by hand), one active pipeline per type, at most 5 concurrent job tasks, and over-quota compute shuts down for the rest of the day. Dev mode pauses the job schedule. Remove the resources with `databricks bundle destroy -t dev`.
+
+**Data source:** Zillow Observed Rent Index (ZORI), ZIP level, from [Zillow Research](https://www.zillow.com/research/data/). The CSV is not committed. Check Zillow's terms before reusing the data.
+
 ## Pipeline Details
 
 ### Transforms (`jobs/transform.py`)
@@ -96,7 +128,7 @@ Configurable checks driven by `config/pipeline.yaml`:
 
 - **Null %** — `median_rent` null fraction <= 10%
 - **Row count** — minimum 100 rows
-- **Range** — rent values in [0, 50000]
+- **Range** — rent values in [0, 150000]
 - **Uniqueness** — no duplicates on `(RegionID, month)`
 
 Checks use a `DataQualityCheck` dataclass with `warn`/`fail` severity. Failed checks raise `DataQualityError`.
