@@ -82,5 +82,5 @@ def dq_gold_metrics() -> DataFrame:
     return gold.agg(
         F.count(F.lit(1)).alias("row_count"),
         F.coalesce(F.avg(F.col("median_rent").isNull().cast("double")), F.lit(0.0)).alias("null_pct"),
-        (F.count(F.lit(1)) - F.countDistinct(*_KEYS)).alias("duplicate_count"),
+        (F.count(F.lit(1)) - F.countDistinct(F.struct(*_KEYS))).alias("duplicate_count"),
     )
