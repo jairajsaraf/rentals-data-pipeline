@@ -34,7 +34,7 @@ dbt stay primary.
 - The pipeline reuses the pure transforms in `jobs/` and reads thresholds from
   `config/pipeline.yaml`, so both runtimes share one config.
 - Local DQ checks map to pipeline expectations (mapping table in the notes).
-- A fingerprint task writes per-layer row counts and column checksums. The
+- A fingerprint task writes per-layer row counts, a whole-row checksum and column checksums. The
   parity script (`scripts/databricks_parity.py`) diffs them against the local
   run and writes `results/databricks_parity.json`.
 

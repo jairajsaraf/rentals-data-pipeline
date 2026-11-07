@@ -131,6 +131,9 @@ def main() -> None:
         "rows": {
             layer: {"local": lfp[layer]["rows"], "remote": rfp[layer]["rows"]} for layer in lfp
         },
+        "row_checksum_match": {
+            layer: lfp[layer]["row_checksum"] == rfp[layer].get("row_checksum") for layer in lfp if layer in rfp
+        },
         "columns_match": {
             layer: {
                 col: lfp[layer]["columns"][col] == rfp[layer]["columns"].get(col)

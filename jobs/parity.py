@@ -11,20 +11,26 @@ from pyspark.sql import functions as F
 
 
 def fingerprint(df: DataFrame) -> dict[str, Any]:
-    """Summarise a DataFrame as a row count plus per-column null count and checksum.
+    """Summarise a DataFrame as row count, row checksum, and per-column null count and checksum.
 
-    The checksum is the sum of ``xxhash64`` over a column's values, so it does
-    not depend on row order. Hashes are cast to ``decimal(38, 0)`` before
-    summing so the sum cannot overflow (ANSI mode on Databricks serverless
-    would raise on a ``bigint`` overflow).
+    Each checksum is the sum of ``xxhash64`` (over a column's values, or over
+    the whole row for ``row_checksum``), so it does not depend on row order.
+    The row checksum catches values attached to the wrong record, which
+    independent column checksums cannot. Hashes are cast to ``decimal(38, 0)``
+    before summing so the sum cannot overflow (ANSI mode on Databricks
+    serverless would raise on a ``bigint`` overflow).
 
     Args:
         df: DataFrame to fingerprint.
 
     Returns:
-        ``{"rows": int, "columns": {name: {"nulls": int, "checksum": int}}}``.
+        ``{"rows": int, "row_checksum": int, "columns": {name: {"nulls": int, "checksum": int}}}``.
     """
-    aggs = [F.count(F.lit(1)).alias("__rows")]
+    row_hash = F.xxhash64(F.struct(*[F.col(f"`{name}`") for name in df.columns]))
+    aggs = [
+        F.count(F.lit(1)).alias("__rows"),
+        F.sum(row_hash.cast("decimal(38,0)")).alias("__row_checksum"),
+    ]
     for i, name in enumerate(df.columns):
         col = F.col(f"`{name}`")
         aggs.append(F.sum(col.isNull().cast("int")).alias(f"n{i}"))
@@ -32,6 +38,7 @@ def fingerprint(df: DataFrame) -> dict[str, Any]:
     row = df.agg(*aggs).first()
     return {
         "rows": int(row["__rows"]),
+        "row_checksum": int(row["__row_checksum"] or 0),
         "columns": {
             name: {
                 "nulls": int(row[f"n{i}"] or 0),
@@ -51,8 +58,8 @@ def diff_fingerprints(local: dict[str, Any], remote: dict[str, Any]) -> list[dic
 
     Returns:
         One ``{"layer", "column", "field", "local", "remote"}`` dict per
-        difference; ``field`` is ``rows``, ``nulls``, ``checksum`` or
-        ``present``. Empty when the two sides match exactly.
+        difference; ``field`` is ``rows``, ``row_checksum``, ``nulls``,
+        ``checksum`` or ``present``. Empty when the two sides match exactly.
 
     Raises:
         ValueError: If the sides were computed from different input files.
@@ -74,6 +81,7 @@ def diff_fingerprints(local: dict[str, Any], remote: dict[str, Any]) -> list[dic
             add(layer, None, "present", lf is not None, rf is not None)
             continue
         add(layer, None, "rows", lf["rows"], rf["rows"])
+        add(layer, None, "row_checksum", lf.get("row_checksum"), rf.get("row_checksum"))
         lc, rc = lf["columns"], rf["columns"]
         for col in sorted(lc.keys() | rc.keys()):
             if col not in lc or col not in rc:

@@ -101,7 +101,7 @@ Then copy `parity_remote.json` back from the volume and run `scripts/databricks_
 | `silver_zori` | 469,420 | 469,420 |
 | `gold_zori` | 469,420 | 469,420 |
 
-- Every column checksum matches on every layer, including `rent_change_mom` and `state_rent_rank`; `diffs` is `[]`.
+- Every column checksum and the whole-row checksum match on every layer, including `rent_change_mom` and `state_rent_rank`; `diffs` is `[]`.
 - Null rents dropped: 706,520 of 1,175,940 unpivoted rows on both sides. Duplicates removed: 0 on both sides.
 - Local DQ: 4 of 4 checks passed. Databricks expectations: `rent_in_range` 0 failed; `min_row_count`, `null_pct_within_threshold` and `no_duplicate_keys` passed.
 

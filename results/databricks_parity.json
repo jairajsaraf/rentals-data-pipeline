@@ -30,6 +30,12 @@
       "remote": 469420
     }
   },
+  "row_checksum_match": {
+    "bronze_zori": true,
+    "silver_long": true,
+    "silver_zori": true,
+    "gold_zori": true
+  },
   "columns_match": {
     "bronze_zori": {
       "RegionID": true,
@@ -250,18 +256,6 @@
       ]
     },
     "remote_expectations": {
-      "silver_long": {
-        "median_rent_not_null": {
-          "passed": 469420,
-          "failed": 706520
-        }
-      },
-      "gold_zori": {
-        "rent_in_range": {
-          "passed": 469420,
-          "failed": 0
-        }
-      },
       "dq_gold_metrics": {
         "null_pct_within_threshold": {
           "passed": 1,
@@ -273,6 +267,18 @@
         },
         "min_row_count": {
           "passed": 1,
+          "failed": 0
+        }
+      },
+      "silver_long": {
+        "median_rent_not_null": {
+          "passed": 469420,
+          "failed": 706520
+        }
+      },
+      "gold_zori": {
+        "rent_in_range": {
+          "passed": 469420,
           "failed": 0
         }
       }

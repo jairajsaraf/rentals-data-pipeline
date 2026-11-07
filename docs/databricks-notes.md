@@ -99,7 +99,7 @@ Source: `results/databricks_parity.json` (the only source of README numbers).
 
 - `diffs` is `[]`: parity was exact, so there are no deltas to explain.
 - Rows match on every layer: bronze 8,340 (150 columns), silver_long, silver_zori and gold 469,420 each.
-- Every column checksum matches, including `rent_change_mom`, although local Spark is 3.5.4 (Docker, Linux) and remote is 4.2.0 (Free Edition serverless).
+- Every column checksum and the whole-row checksum match (the row checksum catches values attached to the wrong record), including `rent_change_mom`, although local Spark is 3.5.4 (Docker, Linux) and remote is 4.2.0 (Free Edition serverless).
 - Dropped null rents: 706,520 on both sides. Duplicates removed: 0 on both sides.
 - `run_date` is taken from the container's UTC clock, so it can differ from the local date by one day.
 

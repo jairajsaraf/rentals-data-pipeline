@@ -29,6 +29,15 @@ def test_fingerprint_detects_value_change(spark: SparkSession) -> None:
     assert a["columns"]["state"] == b["columns"]["state"]
 
 
+def test_fingerprint_detects_swapped_rows(spark: SparkSession) -> None:
+    """Swapping rents between two records keeps column checksums but changes the row checksum."""
+    base = [(1, "NY", 3500.0), (2, "CA", 3200.0)]
+    swapped = [(1, "NY", 3200.0), (2, "CA", 3500.0)]
+    a, b = fingerprint(_df(spark, base)), fingerprint(_df(spark, swapped))
+    assert a["columns"] == b["columns"]
+    assert a["row_checksum"] != b["row_checksum"]
+
+
 def test_fingerprint_counts_nulls(spark: SparkSession) -> None:
     """Null counts are reported per column."""
     rows = [(1, "NY", None), (2, "CA", 3200.0), (3, None, None)]
@@ -38,9 +47,12 @@ def test_fingerprint_counts_nulls(spark: SparkSession) -> None:
     assert cols["RegionID"]["nulls"] == 0
 
 
-def _side(sha: str, checksum: int) -> dict:
+def _side(sha: str, checksum: int, row_checksum: int | None = 7) -> dict:
     cols = {"RegionID": {"nulls": 0, "checksum": 10}, "median_rent": {"nulls": 0, "checksum": checksum}}
-    return {"csv_sha256": sha, "fingerprints": {"gold_zori": {"rows": 2, "columns": cols}}}
+    fp = {"rows": 2, "columns": cols}
+    if row_checksum is not None:
+        fp["row_checksum"] = row_checksum
+    return {"csv_sha256": sha, "fingerprints": {"gold_zori": fp}}
 
 
 def test_diff_reports_column_delta() -> None:
@@ -49,6 +61,14 @@ def test_diff_reports_column_delta() -> None:
     assert diff_fingerprints(_side("a", 5), _side("a", 2**70)) == [
         {"layer": "gold_zori", "column": "median_rent", "field": "checksum", "local": 5, "remote": 2**70}
     ]
+
+
+def test_diff_reports_row_checksum_delta_and_missing() -> None:
+    """A row-checksum delta, or a side without one, is reported."""
+    assert diff_fingerprints(_side("a", 5, 7), _side("a", 5, 8)) == [
+        {"layer": "gold_zori", "column": None, "field": "row_checksum", "local": 7, "remote": 8}
+    ]
+    assert diff_fingerprints(_side("a", 5, 7), _side("a", 5, None))[0]["remote"] is None
 
 
 def test_refuses_on_sha_mismatch() -> None:
