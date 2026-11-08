@@ -1,0 +1,31 @@
+{
+ "columns": [
+  "update_state",
+  "dataset",
+  "flow_status",
+  "expectation",
+  "passed_records",
+  "failed_records",
+  "dropped_records"
+ ],
+ "rows": [
+  [
+   "FAILED",
+   "workspace.zori.gold_zori",
+   "FAILED",
+   "rent_in_range",
+   null,
+   "1",
+   null
+  ],
+  [
+   "FAILED",
+   "workspace.zori.silver_long",
+   "COMPLETED",
+   "median_rent_not_null",
+   "164",
+   "4489",
+   "4489"
+  ]
+ ]
+}
