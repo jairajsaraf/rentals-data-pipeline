@@ -7,11 +7,19 @@ variables:
   catalog:
     description: Unity Catalog catalog (Free Edition default is believed to be "workspace")
     default: workspace
+  csv_name:
+    description: CSV file name in the raw volume (override to run the failure fixture)
+    default: Zip_zori_uc_sfrcondomfr_sm_month.csv
 
 targets:
   dev:
     mode: development
     default: true
+
+  # Interview demo: no development mode (no [dev] prefix); schedule paused via preset.
+  demo:
+    presets:
+      trigger_pause_status: PAUSED
 
 resources:
   schemas:
@@ -33,7 +41,7 @@ resources:
       catalog: ${var.catalog}
       schema: ${resources.schemas.zori_schema.name}
       configuration:
-        zori.csv_path: /Volumes/${var.catalog}/${resources.schemas.zori_schema.name}/raw/Zip_zori_uc_sfrcondomfr_sm_month.csv
+        zori.csv_path: /Volumes/${var.catalog}/${resources.schemas.zori_schema.name}/raw/${var.csv_name}
       libraries:
         - glob:
             include: databricks/pipeline.py
@@ -68,6 +76,6 @@ resources:
               - --schema
               - ${resources.schemas.zori_schema.name}
               - --csv-path
-              - /Volumes/${var.catalog}/${resources.schemas.zori_schema.name}/raw/Zip_zori_uc_sfrcondomfr_sm_month.csv
+              - /Volumes/${var.catalog}/${resources.schemas.zori_schema.name}/raw/${var.csv_name}
               - --out
               - /Volumes/${var.catalog}/${resources.schemas.zori_schema.name}/raw/parity_remote.json
